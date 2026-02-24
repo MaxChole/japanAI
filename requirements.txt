@@ -1,0 +1,8 @@
+# 日本地产投资建议后端依赖
+langchain-core>=0.3.0
+langchain-openai>=0.2.0
+langgraph>=0.2.0
+rank-bm25>=0.2.2
+fastapi>=0.115.0
+uvicorn>=0.32.0
+pydantic>=2.0.0

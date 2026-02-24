@@ -1,0 +1,25 @@
+# 日本地产投资建议 Agent 项目
+# 多角色辩论 + 裁判架构，产出 BUY/HOLD/AVOID 及执行建议
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "japanai"
+version = "0.1.0"
+description = "日本地产投资建议多 Agent 后端（地段/法律/税务/收益分析师 + 多空辩论 + 风控辩论）"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "langchain-core>=0.3.0",
+    "langchain-openai>=0.2.0",
+    "langgraph>=0.2.0",
+    "rank-bm25>=0.2.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["japanai*"]
