@@ -35,12 +35,20 @@ POST /advise
 - **[ARCHITECTURE.md](ARCHITECTURE.md)**：架构说明、数据流、图编排、扩展建议（含注释）。
 - 各模块内关键逻辑已加中文注释，便于阅读与二次开发。
 
+## 前端与联调
+
+- **前端**：`frontend/` 为 Vite + React 单页应用，科技感 UI，支持所有后端参数（标的、用户画像、模型与 Token、图参数等），厂商可选 OpenAI / MiniMax / OpenRouter / Ollama / 自定义。
+- **启动前端**：`cd frontend && npm install && npm run dev`，默认 http://localhost:5173。
+- **前后端联调**：见 **[docs/FRONTEND_BACKEND_INTEGRATION.md](docs/FRONTEND_BACKEND_INTEGRATION.md)**，含 API 说明、参数表、MiniMax 示例与检查清单。
+
 ## 项目结构概览
 
 - `japanai/agents/` — 状态、记忆、四类分析师、Bull/Bear、研究经理、交易员、风控辩论与裁判
 - `japanai/dataflows/` — 数据层（当前 mock，可扩展真实 API）
 - `japanai/llm_clients/` — LLM 工厂（openai / ollama / openrouter）
 - `japanai/graph/` — 图编排、条件边、初始状态、信号解析
-- `japanai/api/` — FastAPI `POST /advise`
+- `japanai/api/` — FastAPI `POST /advise`、`GET /config`、`GET /health`
+- `frontend/` — React 前端，模型与 Token 由前端输入
+- `docs/FRONTEND_BACKEND_INTEGRATION.md` — 前端后端连调文档
 
-架构设计参考 [TradingAgents](https://github.com/...) 的 Agent/图/数据流模式。
+架构设计参考 TradingAgents 的 Agent/图/数据流模式。

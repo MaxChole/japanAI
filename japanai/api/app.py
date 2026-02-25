@@ -1,36 +1,94 @@
 """
-FastAPI 应用：提供 POST /advise 接口，入参为标的、用户画像、可选基准日，
-返回最终决策、信号（BUY/HOLD/AVOID）及各报告摘要。
+FastAPI 应用：提供 POST /advise 接口，入参为标的、用户画像、可选基准日、
+可选 LLM 配置（provider/model/api_key/base_url）与图参数，返回最终决策及各报告。
 """
 from datetime import date
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from japanai.real_estate_graph import RealEstateGraph
+from japanai.default_config import DEFAULT_CONFIG
 
 app = FastAPI(
     title="JapanAI 地产投资建议",
-    description="多角色 Agent 产出 BUY/HOLD/AVOID 及可执行建议",
+    description="多角色 Agent 产出 BUY/HOLD/AVOID 及可执行建议；支持前端传入模型与 Token。",
 )
 
-# 全局图实例（可改为依赖注入或按请求创建）
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 默认图实例（无自定义配置时复用）
 _graph: Optional[RealEstateGraph] = None
 
 
-def get_graph() -> RealEstateGraph:
+def _build_config(llm_config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """合并默认配置与请求中的 LLM 配置。"""
+    config = dict(DEFAULT_CONFIG)
+    if llm_config:
+        for k, v in llm_config.items():
+            if v is not None:
+                config[k] = v
+    return config
+
+
+def get_or_create_graph(
+    llm_config: Optional[Dict[str, Any]] = None,
+    selected_analysts: Optional[List[str]] = None,
+    debug: bool = False,
+    max_debate_rounds: Optional[int] = None,
+    max_risk_discuss_rounds: Optional[int] = None,
+) -> RealEstateGraph:
+    """有自定义配置时每次新建图，否则复用全局图。"""
     global _graph
+    if llm_config or selected_analysts is not None or max_debate_rounds is not None or max_risk_discuss_rounds is not None:
+        config = _build_config(llm_config)
+        if max_debate_rounds is not None:
+            config["max_debate_rounds"] = max_debate_rounds
+        if max_risk_discuss_rounds is not None:
+            config["max_risk_discuss_rounds"] = max_risk_discuss_rounds
+        return RealEstateGraph(
+            config=config,
+            selected_analysts=selected_analysts or ["location", "legal", "tax", "yield"],
+            debug=debug,
+        )
     if _graph is None:
         _graph = RealEstateGraph()
     return _graph
 
 
+# ---------- 请求/响应模型 ----------
+
+
+class LLMConfig(BaseModel):
+    """前端可传入的 LLM 配置（模型与 Token）。"""
+    provider: Optional[str] = Field(None, description="openai | openrouter | ollama | 或兼容 OpenAI API 的厂商如 minimax")
+    deep_think_llm: Optional[str] = Field(None, description="深思模型名，如 gpt-4o-mini、minimax 模型名")
+    quick_think_llm: Optional[str] = Field(None, description="快思模型名")
+    api_key: Optional[str] = Field(None, description="API Key / Token")
+    backend_url: Optional[str] = Field(None, description="自定义 API 基地址，如 MiniMax、OpenRouter 等")
+
+
 class AdviseRequest(BaseModel):
-    """请求体：地产标的与用户画像。"""
+    """请求体：地产标的、用户画像、可选基准日与 LLM/图参数。"""
     property_of_interest: str = Field(..., description="地产标的（区域、楼盘等）")
     user_profile: str = Field(..., description="用户画像：预算、用途、是否非居住者、持有期限等")
     trade_date: Optional[str] = Field(None, description="分析基准日 yyyy-mm-dd，默认今天")
+    llm_config: Optional[LLMConfig] = Field(None, description="模型与 Token，不传则使用环境变量或后端默认")
+    selected_analysts: Optional[List[str]] = Field(
+        None,
+        description="参与的分析师：location, legal, tax, yield",
+    )
+    debug: Optional[bool] = Field(False, description="是否开启调试")
+    max_debate_rounds: Optional[int] = Field(None, description="多空辩论轮数")
+    max_risk_discuss_rounds: Optional[int] = Field(None, description="风控辩论轮数")
 
 
 class AdviseResponse(BaseModel):
@@ -45,13 +103,61 @@ class AdviseResponse(BaseModel):
     yield_report: str = Field("", description="收益报告摘要")
 
 
+# ---------- 配置 schema（供前端展示可选参数） ----------
+
+
+class ConfigSchemaResponse(BaseModel):
+    """GET /config 返回的配置说明，便于前端生成表单。"""
+    llm_providers: List[str] = Field(
+        default=["openai", "openrouter", "ollama"],
+        description="支持的 LLM 厂商（兼容 OpenAI API 的如 minimax 选 openai + backend_url）",
+    )
+    analyst_options: List[str] = Field(
+        default=["location", "legal", "tax", "yield"],
+        description="可选分析师类型",
+    )
+    advise_request_fields: Dict[str, str] = Field(
+        default_factory=lambda: {
+            "property_of_interest": "地产标的（必填）",
+            "user_profile": "用户画像（必填）",
+            "trade_date": "分析基准日 yyyy-mm-dd（可选）",
+            "llm_config.provider": "LLM 厂商",
+            "llm_config.deep_think_llm": "深思模型名",
+            "llm_config.quick_think_llm": "快思模型名",
+            "llm_config.api_key": "API Key / Token",
+            "llm_config.backend_url": "API 基地址（如 MiniMax）",
+            "selected_analysts": "参与的分析师列表",
+            "max_debate_rounds": "多空辩论轮数",
+            "max_risk_discuss_rounds": "风控辩论轮数",
+        },
+    )
+
+
+@app.get("/config", response_model=ConfigSchemaResponse)
+def get_config_schema() -> ConfigSchemaResponse:
+    """返回前端可用的参数说明，用于表单与联调。"""
+    return ConfigSchemaResponse()
+
+
 @app.post("/advise", response_model=AdviseResponse)
 def advise(req: AdviseRequest) -> AdviseResponse:
     """
     运行多 Agent 图，返回最终建议与各报告。
-    内部会依次执行：区域/法律/税务/收益分析师 → 多空辩论 → 研究经理 → 交易员 → 风控辩论 → 风控裁判。
+    若传 llm_config，将使用前端提供的模型与 Token（如 MiniMax）；否则使用后端默认或环境变量。
     """
-    graph = get_graph()
+    llm_dict: Optional[Dict[str, Any]] = None
+    if req.llm_config:
+        llm_dict = req.llm_config.model_dump(exclude_none=True)
+        if req.llm_config.provider and req.llm_config.provider.lower() == "minimax":
+            llm_dict["provider"] = "openai"
+            llm_dict.setdefault("backend_url", "https://api.minimax.chat/v1")
+    graph = get_or_create_graph(
+        llm_config=llm_dict,
+        selected_analysts=req.selected_analysts,
+        debug=req.debug or False,
+        max_debate_rounds=req.max_debate_rounds,
+        max_risk_discuss_rounds=req.max_risk_discuss_rounds,
+    )
     final_state, signal = graph.propagate(
         property_of_interest=req.property_of_interest,
         user_profile=req.user_profile,

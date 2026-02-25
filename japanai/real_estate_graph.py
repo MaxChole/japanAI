@@ -85,8 +85,8 @@ class RealEstateGraph:
         }
 
         self.conditional_logic = ConditionalLogic(
-            max_debate_rounds=1,
-            max_risk_discuss_rounds=1,
+            max_debate_rounds=self.config.get("max_debate_rounds", 1),
+            max_risk_discuss_rounds=self.config.get("max_risk_discuss_rounds", 1),
         )
         self.graph_setup = GraphSetup(
             self.quick_llm,
@@ -111,6 +111,8 @@ class RealEstateGraph:
         out = {}
         if self.callbacks:
             out["callbacks"] = self.callbacks
+        if self.config.get("api_key"):
+            out["api_key"] = self.config["api_key"]
         return out
 
     def propagate(
