@@ -2,11 +2,13 @@
 图构建：使用 StateGraph(RealEstateAgentState) 添加所有节点与边，
 分析师链 → 多空辩论 → Research Manager → Trader → 风控辩论 → Risk Judge → END。
 """
-from typing import Dict
+import time
+from typing import Any, Callable, Dict
 from langgraph.graph import END, StateGraph, START
 from langgraph.prebuilt import ToolNode
 
 from japanai.agents.utils.agent_states import RealEstateAgentState
+from japanai.utils.step_logger import log_step, log_step_done
 from japanai.agents.utils.agent_utils import create_msg_delete
 from japanai.agents.utils.location_tools import get_location_data
 from japanai.agents.utils.legal_tools import get_legal_faq
@@ -26,6 +28,17 @@ from japanai.agents.risk_mgmt.conservative_debator import create_conservative_de
 from japanai.agents.risk_mgmt.neutral_debator import create_neutral_debator
 
 from .conditional_logic import ConditionalLogic
+
+
+def _wrap_with_log(step_name: str, node_fn: Callable[[Dict[str, Any]], Dict[str, Any]]):
+    """包装节点：进入与结束时打步骤日志，便于控制台可观测。"""
+    def wrapped(state: Dict[str, Any]) -> Dict[str, Any]:
+        log_step(step_name, "开始执行")
+        t0 = time.perf_counter()
+        out = node_fn(state)
+        log_step_done(step_name, time.perf_counter() - t0)
+        return out
+    return wrapped
 
 
 class GraphSetup:
@@ -94,20 +107,36 @@ class GraphSetup:
 
         workflow = StateGraph(RealEstateAgentState)
 
+        step_names = {
+            "Location Analyst": "1. 区域分析师",
+            "Legal Analyst": "2. 法律/合规分析师",
+            "Tax Analyst": "3. 税务分析师",
+            "Yield Analyst": "4. 收益分析师",
+            "Bull Researcher": "5. 多头研究员",
+            "Bear Researcher": "6. 空头研究员",
+            "Research Manager": "7. 研究经理",
+            "Trader": "8. 交易员",
+            "Aggressive Analyst": "9. 风控-激进",
+            "Conservative Analyst": "10. 风控-保守",
+            "Neutral Analyst": "11. 风控-中性",
+            "Risk Judge": "12. 风控裁判",
+        }
+
         for analyst_type, node in analyst_nodes.items():
             cap = analyst_type.capitalize()
-            workflow.add_node(f"{cap} Analyst", node)
+            node_name = f"{cap} Analyst"
+            workflow.add_node(node_name, _wrap_with_log(step_names[node_name], node))
             workflow.add_node(f"Msg Clear {cap}", delete_nodes[analyst_type])
             workflow.add_node(f"tools_{analyst_type}", self.tool_nodes[analyst_type])
 
-        workflow.add_node("Bull Researcher", bull_node)
-        workflow.add_node("Bear Researcher", bear_node)
-        workflow.add_node("Research Manager", research_manager_node)
-        workflow.add_node("Trader", trader_node)
-        workflow.add_node("Aggressive Analyst", aggressive_node)
-        workflow.add_node("Conservative Analyst", conservative_node)
-        workflow.add_node("Neutral Analyst", neutral_node)
-        workflow.add_node("Risk Judge", risk_manager_node)
+        workflow.add_node("Bull Researcher", _wrap_with_log(step_names["Bull Researcher"], bull_node))
+        workflow.add_node("Bear Researcher", _wrap_with_log(step_names["Bear Researcher"], bear_node))
+        workflow.add_node("Research Manager", _wrap_with_log(step_names["Research Manager"], research_manager_node))
+        workflow.add_node("Trader", _wrap_with_log(step_names["Trader"], trader_node))
+        workflow.add_node("Aggressive Analyst", _wrap_with_log(step_names["Aggressive Analyst"], aggressive_node))
+        workflow.add_node("Conservative Analyst", _wrap_with_log(step_names["Conservative Analyst"], conservative_node))
+        workflow.add_node("Neutral Analyst", _wrap_with_log(step_names["Neutral Analyst"], neutral_node))
+        workflow.add_node("Risk Judge", _wrap_with_log(step_names["Risk Judge"], risk_manager_node))
 
         first = selected_analysts[0]
         workflow.add_edge(START, f"{first.capitalize()} Analyst")

@@ -4,18 +4,23 @@
 
 ## 快速开始
 
+**默认已使用 MiniMax 大模型与 Token（已写死后端），无需再配 OpenAI。**
+
 ```bash
 # 安装依赖
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 
-# 设置 OpenAI API Key 后直接运行一次图（命令行）
-export OPENAI_API_KEY=your_key
-python main.py
+# 启动 API 服务（默认 MiniMax abab6.5s-chat + 已配置 Token）
+python3 run_api.py
+# 服务地址: http://localhost:8000
 
-# 或启动 API 服务
-python run_api.py
-# 然后 POST http://localhost:8000/advise
+# 测试「日本价格」查询（另开终端）
+./scripts/test_advise.sh
+# 或
+python3 scripts/test_advise.py
 ```
+
+若需改用其他模型或 Token，可设置环境变量 `MINIMAX_API_KEY`，或在前端/请求里传 `llm_config`。
 
 ## 请求示例
 

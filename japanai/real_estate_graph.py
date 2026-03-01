@@ -8,8 +8,11 @@
   3. Trader 根据计划产出带 FINAL RECOMMENDATION 的可执行方案；
   4. 风控三方辩论后由 Risk Judge 产出 final_decision（BUY/HOLD/AVOID）。
 """
+import time
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
+
+from japanai.utils.step_logger import log_phase, log_request_end, log_request_start
 
 from langgraph.prebuilt import ToolNode
 
@@ -134,6 +137,9 @@ class RealEstateGraph:
         """
         if trade_date is None:
             trade_date = str(date.today())
+        log_request_start(property_of_interest, user_profile)
+        log_phase("分析师链 → 多空辩论 → 研究经理 → 交易员 → 风控辩论 → 风控裁判", "开始执行图")
+        t0 = time.perf_counter()
         init_state = self.propagator.create_initial_state(
             property_of_interest, user_profile, trade_date
         )
@@ -149,6 +155,9 @@ class RealEstateGraph:
 
         self.curr_state = final_state
         signal = self.process_signal(final_state.get("final_decision") or "")
+        elapsed = time.perf_counter() - t0
+        log_phase("结束", f"信号: {signal}")
+        log_request_end(signal, elapsed)
         return final_state, signal
 
     def process_signal(self, full_signal: str) -> str:

@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from japanai.real_estate_graph import RealEstateGraph
 from japanai.default_config import DEFAULT_CONFIG
+from japanai.utils.step_logger import log_step
 
 app = FastAPI(
     title="JapanAI 地产投资建议",
@@ -145,6 +146,7 @@ def advise(req: AdviseRequest) -> AdviseResponse:
     运行多 Agent 图，返回最终建议与各报告。
     若传 llm_config，将使用前端提供的模型与 Token（如 MiniMax）；否则使用后端默认或环境变量。
     """
+    log_step("API", "收到 POST /advise 请求", extra=f"标的: {(req.property_of_interest[:50] + '...') if len(req.property_of_interest) > 50 else req.property_of_interest}")
     llm_dict: Optional[Dict[str, Any]] = None
     if req.llm_config:
         llm_dict = req.llm_config.model_dump(exclude_none=True)
