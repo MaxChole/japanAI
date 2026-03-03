@@ -43,21 +43,31 @@ def _build_config(llm_config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]
 def get_or_create_graph(
     llm_config: Optional[Dict[str, Any]] = None,
     selected_analysts: Optional[List[str]] = None,
+    use_risk_debate: Optional[bool] = None,
     debug: bool = False,
     max_debate_rounds: Optional[int] = None,
     max_risk_discuss_rounds: Optional[int] = None,
 ) -> RealEstateGraph:
     """有自定义配置时每次新建图，否则复用全局图。"""
     global _graph
-    if llm_config or selected_analysts is not None or max_debate_rounds is not None or max_risk_discuss_rounds is not None:
+    if (
+        llm_config
+        or selected_analysts is not None
+        or use_risk_debate is not None
+        or max_debate_rounds is not None
+        or max_risk_discuss_rounds is not None
+    ):
         config = _build_config(llm_config)
         if max_debate_rounds is not None:
             config["max_debate_rounds"] = max_debate_rounds
         if max_risk_discuss_rounds is not None:
             config["max_risk_discuss_rounds"] = max_risk_discuss_rounds
+        if use_risk_debate is not None:
+            config["use_risk_debate"] = use_risk_debate
         return RealEstateGraph(
             config=config,
-            selected_analysts=selected_analysts or ["location", "legal", "tax", "yield"],
+            selected_analysts=selected_analysts or ["location", "legal", "policy", "tax", "yield"],
+            use_risk_debate=config.get("use_risk_debate"),
             debug=debug,
         )
     if _graph is None:
@@ -78,14 +88,19 @@ class LLMConfig(BaseModel):
 
 
 class AdviseRequest(BaseModel):
-    """请求体：地产标的、用户画像、可选基准日与 LLM/图参数。"""
-    property_of_interest: str = Field(..., description="地产标的（区域、楼盘等）")
+    """请求体：地产标的、用户画像、户籍、可选基准日与 LLM/图参数。"""
+    property_of_interest: str = Field(..., description="地产标的（区域、楼盘、具体地址等）")
     user_profile: str = Field(..., description="用户画像：预算、用途、是否非居住者、持有期限等")
+    household_region: Optional[str] = Field(None, description="用户户籍/国籍/常居地，供政策研究员分析该国在日购房政策")
     trade_date: Optional[str] = Field(None, description="分析基准日 yyyy-mm-dd，默认今天")
     llm_config: Optional[LLMConfig] = Field(None, description="模型与 Token，不传则使用环境变量或后端默认")
     selected_analysts: Optional[List[str]] = Field(
         None,
-        description="参与的分析师：location, legal, tax, yield",
+        description="参与的分析师：location, legal, policy, tax, yield，少开可降 429",
+    )
+    use_risk_debate: Optional[bool] = Field(
+        None,
+        description="True=三方风控辩论后裁判，False=仅风控裁判一人评判（省调用、推荐限流时用）",
     )
     debug: Optional[bool] = Field(False, description="是否开启调试")
     max_debate_rounds: Optional[int] = Field(None, description="多空辩论轮数")
@@ -100,6 +115,7 @@ class AdviseResponse(BaseModel):
     trader_investment_plan: str = Field("", description="交易员可执行计划")
     location_report: str = Field("", description="区域报告摘要")
     legal_report: str = Field("", description="法律报告摘要")
+    policy_report: str = Field("", description="政策研究员报告（户籍国在日购房政策）")
     tax_report: str = Field("", description="税务报告摘要")
     yield_report: str = Field("", description="收益报告摘要")
 
@@ -114,13 +130,14 @@ class ConfigSchemaResponse(BaseModel):
         description="支持的 LLM 厂商（兼容 OpenAI API 的如 minimax 选 openai + backend_url）",
     )
     analyst_options: List[str] = Field(
-        default=["location", "legal", "tax", "yield"],
+        default=["location", "legal", "policy", "tax", "yield"],
         description="可选分析师类型",
     )
     advise_request_fields: Dict[str, str] = Field(
         default_factory=lambda: {
             "property_of_interest": "地产标的（必填）",
             "user_profile": "用户画像（必填）",
+            "household_region": "用户户籍/国籍/常居地（可选，供政策研究员）",
             "trade_date": "分析基准日 yyyy-mm-dd（可选）",
             "llm_config.provider": "LLM 厂商",
             "llm_config.deep_think_llm": "深思模型名",
@@ -128,6 +145,7 @@ class ConfigSchemaResponse(BaseModel):
             "llm_config.api_key": "API Key / Token",
             "llm_config.backend_url": "API 基地址（如 MiniMax）",
             "selected_analysts": "参与的分析师列表",
+            "use_risk_debate": "True=三方风控辩论，False=仅风控裁判一人",
             "max_debate_rounds": "多空辩论轮数",
             "max_risk_discuss_rounds": "风控辩论轮数",
         },
@@ -156,6 +174,7 @@ def advise(req: AdviseRequest) -> AdviseResponse:
     graph = get_or_create_graph(
         llm_config=llm_dict,
         selected_analysts=req.selected_analysts,
+        use_risk_debate=req.use_risk_debate,
         debug=req.debug or False,
         max_debate_rounds=req.max_debate_rounds,
         max_risk_discuss_rounds=req.max_risk_discuss_rounds,
@@ -164,6 +183,7 @@ def advise(req: AdviseRequest) -> AdviseResponse:
         property_of_interest=req.property_of_interest,
         user_profile=req.user_profile,
         trade_date=req.trade_date,
+        household_region=req.household_region or "",
     )
     return AdviseResponse(
         signal=signal,
@@ -172,6 +192,7 @@ def advise(req: AdviseRequest) -> AdviseResponse:
         trader_investment_plan=final_state.get("trader_investment_plan") or "",
         location_report=final_state.get("location_report") or "",
         legal_report=final_state.get("legal_report") or "",
+        policy_report=final_state.get("policy_report") or "",
         tax_report=final_state.get("tax_report") or "",
         yield_report=final_state.get("yield_report") or "",
     )

@@ -39,13 +39,15 @@ class RiskDebateState(TypedDict):
 # 所有节点读写此结构（或其中子字段）；与 TradingAgents 的 AgentState 一一对应，仅字段名改为地产场景
 class RealEstateAgentState(MessagesState):
     # 标的与上下文
-    property_of_interest: Annotated[str, "用户关心的地产标的（如区域、楼盘名）"]
+    property_of_interest: Annotated[str, "用户关心的地产标的（如区域、楼盘名、具体地址）"]
     user_profile: Annotated[str, "用户画像：预算、用途（自住/投资）、是否非居住者、持有期限等"]
+    household_region: Annotated[str, "用户户籍/国籍/常居地，用于政策研究员分析该国在目标国购房政策"]
     trade_date: Annotated[str, "分析基准日（yyyy-mm-dd）"]
 
-    # 四类分析师产出（对应股票场景的 market/sentiment/news/fundamentals）
+    # 五类分析师产出
     location_report: Annotated[str, "区域/地段分析报告"]
     legal_report: Annotated[str, "法律/合规报告"]
+    policy_report: Annotated[str, "政策研究员报告：用户户籍国在目标国（如日本）的购房政策与限制"]
     tax_report: Annotated[str, "税务报告"]
     yield_report: Annotated[str, "现金流/收益分析报告"]
 

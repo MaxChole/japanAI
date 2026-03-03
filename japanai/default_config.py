@@ -16,6 +16,7 @@ DEFAULT_CONFIG = {
     "data_vendors": {
         "location_data": "mock",
         "legal_data": "mock",
+        "policy_data": "mock",
         "tax_data": "mock",
         "yield_data": "mock",
     },
@@ -23,4 +24,6 @@ DEFAULT_CONFIG = {
     "project_dir": ".",
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
+    # True=三方风控辩论(Aggressive/Conservative/Neutral)后裁判；False=仅风控裁判一人评判（省调用、适合限流）
+    "use_risk_debate": False,
 }

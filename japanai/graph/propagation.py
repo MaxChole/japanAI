@@ -44,15 +44,18 @@ class Propagator:
         property_of_interest: str,
         user_profile: str,
         trade_date: str,
+        household_region: str = "",
     ) -> Dict[str, Any]:
-        """构造图的初始 state：消息、标的、用户画像、空报告、初始辩论状态。"""
+        """构造图的初始 state：消息、标的、用户画像、户籍、空报告、初始辩论状态。"""
         return {
             "messages": [("human", property_of_interest)],
             "property_of_interest": property_of_interest,
             "user_profile": user_profile,
+            "household_region": household_region or "",
             "trade_date": trade_date,
             "location_report": "",
             "legal_report": "",
+            "policy_report": "",
             "tax_report": "",
             "yield_report": "",
             "investment_debate_state": _empty_invest_debate(),

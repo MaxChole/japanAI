@@ -10,10 +10,14 @@ def create_conservative_debator(llm):
         cur_agg = rdeb.get("current_aggressive_response", "")
         cur_neu = rdeb.get("current_neutral_response", "")
         trader_plan = state["trader_investment_plan"]
-        loc, leg, tax, yld = state["location_report"], state["legal_report"], state["tax_report"], state["yield_report"]
+        loc = state["location_report"]
+        leg = state["legal_report"]
+        pol = state.get("policy_report", "")
+        tax = state["tax_report"]
+        yld = state["yield_report"]
 
         prompt = f"""As the Conservative Risk Analyst, prioritize stability and risk mitigation for this real estate. Highlight liquidity, tax, legal, vacancy risks. Counter aggressive and neutral views. Trader plan: {trader_plan}
-Reports: Location: {loc}; Legal: {leg}; Tax: {tax}; Yield: {yld}
+Reports: Location: {loc}; Legal: {leg}; Policy: {pol}; Tax: {tax}; Yield: {yld}
 History: {history}. Last aggressive: {cur_agg}. Last neutral: {cur_neu}. If none, just present your view. Debate concisely, no special formatting."""
 
         response = llm.invoke(prompt)

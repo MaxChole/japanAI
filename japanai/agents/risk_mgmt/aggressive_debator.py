@@ -10,10 +10,14 @@ def create_aggressive_debator(llm):
         cur_con = rdeb.get("current_conservative_response", "")
         cur_neu = rdeb.get("current_neutral_response", "")
         trader_plan = state["trader_investment_plan"]
-        loc, leg, tax, yld = state["location_report"], state["legal_report"], state["tax_report"], state["yield_report"]
+        loc = state["location_report"]
+        leg = state["legal_report"]
+        pol = state.get("policy_report", "")
+        tax = state["tax_report"]
+        yld = state["yield_report"]
 
         prompt = f"""As the Aggressive Risk Analyst, champion high-reward opportunities for this real estate. Emphasize upside, growth, and benefits. Counter the conservative and neutral views. Trader plan: {trader_plan}
-Reports: Location: {loc}; Legal: {leg}; Tax: {tax}; Yield: {yld}
+Reports: Location: {loc}; Legal: {leg}; Policy: {pol}; Tax: {tax}; Yield: {yld}
 History: {history}. Last conservative: {cur_con}. Last neutral: {cur_neu}. If none, just present your view. Debate concisely, no special formatting."""
 
         response = llm.invoke(prompt)

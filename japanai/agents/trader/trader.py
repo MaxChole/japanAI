@@ -14,10 +14,11 @@ def create_trader(llm, memory):
         investment_plan = state["investment_plan"]
         loc = state["location_report"]
         leg = state["legal_report"]
+        pol = state.get("policy_report", "")
         tax = state["tax_report"]
         yld = state["yield_report"]
 
-        curr_situation = f"{loc}\n\n{leg}\n\n{tax}\n\n{yld}"
+        curr_situation = f"{loc}\n\n{leg}\n\n{pol}\n\n{tax}\n\n{yld}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
         past_memory_str = "\n\n".join(
             rec["recommendation"] for rec in past_memories

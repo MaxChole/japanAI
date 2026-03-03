@@ -15,10 +15,11 @@ def create_bull_researcher(llm, memory):
         current_response = ideb.get("current_response", "")  # 上一轮 Bear 的发言
         loc = state["location_report"]
         leg = state["legal_report"]
+        pol = state.get("policy_report", "")
         tax = state["tax_report"]
         yld = state["yield_report"]
 
-        curr_situation = f"{loc}\n\n{leg}\n\n{tax}\n\n{yld}"
+        curr_situation = f"{loc}\n\n{leg}\n\n{pol}\n\n{tax}\n\n{yld}"
         past_memories = memory.get_memories(curr_situation, n_matches=2)
         past_memory_str = "\n\n".join(
             rec["recommendation"] for rec in past_memories
@@ -28,6 +29,7 @@ def create_bull_researcher(llm, memory):
 
 Location report: {loc}
 Legal report: {leg}
+Policy report: {pol}
 Tax report: {tax}
 Yield report: {yld}
 Debate history: {history}

@@ -8,6 +8,7 @@ from .utils.agent_states import (
 )
 from .analysts.location_analyst import create_location_analyst
 from .analysts.legal_analyst import create_legal_analyst
+from .analysts.policy_analyst import create_policy_analyst
 from .analysts.tax_analyst import create_tax_analyst
 from .analysts.yield_analyst import create_yield_analyst
 from .researchers.bull_researcher import create_bull_researcher
@@ -25,6 +26,7 @@ __all__ = [
     "RiskDebateState",
     "create_location_analyst",
     "create_legal_analyst",
+    "create_policy_analyst",
     "create_tax_analyst",
     "create_yield_analyst",
     "create_bull_researcher",

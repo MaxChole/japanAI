@@ -21,6 +21,7 @@ from japanai.agents.utils.agent_states import RealEstateAgentState
 from japanai.agents.utils.memory import RealEstateSituationMemory
 from japanai.agents.utils.location_tools import get_location_data
 from japanai.agents.utils.legal_tools import get_legal_faq
+from japanai.agents.utils.policy_tools import get_policy_faq
 from japanai.agents.utils.tax_tools import get_tax_rules
 from japanai.agents.utils.yield_tools import get_yield_inputs
 from japanai.dataflows.config import set_config
@@ -38,13 +39,15 @@ class RealEstateGraph:
     def __init__(
         self,
         selected_analysts: Optional[List[str]] = None,
+        use_risk_debate: Optional[bool] = None,
         debug: bool = False,
         config: Optional[Dict[str, Any]] = None,
         callbacks: Optional[List] = None,
     ):
         """
         Args:
-            selected_analysts: 参与的分析师类型，默认 ["location", "legal", "tax", "yield"]
+            selected_analysts: 参与的分析师类型
+            use_risk_debate: True=三方风控辩论后裁判，False=仅风控裁判一人评判（省 LLM 调用）
             debug: 是否以 stream 方式打印中间结果
             config: 配置字典，缺省用 DEFAULT_CONFIG
             callbacks: 可选回调列表
@@ -83,6 +86,7 @@ class RealEstateGraph:
         self.tool_nodes = {
             "location": ToolNode([get_location_data]),
             "legal": ToolNode([get_legal_faq]),
+            "policy": ToolNode([get_policy_faq]),
             "tax": ToolNode([get_tax_rules]),
             "yield": ToolNode([get_yield_inputs]),
         }
@@ -105,8 +109,10 @@ class RealEstateGraph:
         self.propagator = Propagator()
         self.signal_processor = SignalProcessor(self.quick_llm)
 
+        use_risk_debate = use_risk_debate if use_risk_debate is not None else self.config.get("use_risk_debate", True)
         self.graph = self.graph_setup.setup_graph(
-            selected_analysts=selected_analysts or ["location", "legal", "tax", "yield"]
+            selected_analysts=selected_analysts or ["location", "legal", "policy", "tax", "yield"],
+            use_risk_debate=use_risk_debate,
         )
         self.curr_state: Optional[Dict[str, Any]] = None
 
@@ -123,6 +129,7 @@ class RealEstateGraph:
         property_of_interest: str,
         user_profile: str,
         trade_date: Optional[str] = None,
+        household_region: Optional[str] = None,
     ) -> Tuple[Dict[str, Any], str]:
         """
         运行图并返回最终 state 与抽取的决策（BUY/HOLD/AVOID）。
@@ -141,7 +148,10 @@ class RealEstateGraph:
         log_phase("分析师链 → 多空辩论 → 研究经理 → 交易员 → 风控辩论 → 风控裁判", "开始执行图")
         t0 = time.perf_counter()
         init_state = self.propagator.create_initial_state(
-            property_of_interest, user_profile, trade_date
+            property_of_interest,
+            user_profile,
+            trade_date,
+            household_region=household_region or "",
         )
         args = self.propagator.get_graph_args(self.callbacks)
 

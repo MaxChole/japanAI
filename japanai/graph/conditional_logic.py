@@ -25,6 +25,12 @@ class ConditionalLogic:
             return "tools_legal"
         return "Msg Clear Legal"
 
+    def should_continue_policy(self, state: RealEstateAgentState) -> str:
+        messages = state["messages"]
+        if messages and getattr(messages[-1], "tool_calls", None):
+            return "tools_policy"
+        return "Msg Clear Policy"
+
     def should_continue_tax(self, state: RealEstateAgentState) -> str:
         messages = state["messages"]
         if messages and getattr(messages[-1], "tool_calls", None):

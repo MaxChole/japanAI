@@ -6,6 +6,7 @@ from .config import get_config
 from .mock_vendor import (
     get_location_data,
     get_legal_faq,
+    get_policy_faq,
     get_tax_rules,
     get_yield_inputs,
 )
@@ -14,6 +15,7 @@ from .mock_vendor import (
 VENDOR_METHODS = {
     "get_location_data": {"mock": get_location_data},
     "get_legal_faq": {"mock": get_legal_faq},
+    "get_policy_faq": {"mock": get_policy_faq},
     "get_tax_rules": {"mock": get_tax_rules},
     "get_yield_inputs": {"mock": get_yield_inputs},
 }
@@ -22,6 +24,7 @@ VENDOR_METHODS = {
 TOOLS_CATEGORIES = {
     "location_data": {"description": "区域/地段数据", "tools": ["get_location_data"]},
     "legal_data": {"description": "法律/合规", "tools": ["get_legal_faq"]},
+    "policy_data": {"description": "户籍国在目标国购房政策", "tools": ["get_policy_faq"]},
     "tax_data": {"description": "税务规则", "tools": ["get_tax_rules"]},
     "yield_data": {"description": "收益/现金流", "tools": ["get_yield_inputs"]},
 }

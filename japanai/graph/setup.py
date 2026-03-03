@@ -12,10 +12,12 @@ from japanai.utils.step_logger import log_step, log_step_done
 from japanai.agents.utils.agent_utils import create_msg_delete
 from japanai.agents.utils.location_tools import get_location_data
 from japanai.agents.utils.legal_tools import get_legal_faq
+from japanai.agents.utils.policy_tools import get_policy_faq
 from japanai.agents.utils.tax_tools import get_tax_rules
 from japanai.agents.utils.yield_tools import get_yield_inputs
 from japanai.agents.analysts.location_analyst import create_location_analyst
 from japanai.agents.analysts.legal_analyst import create_legal_analyst
+from japanai.agents.analysts.policy_analyst import create_policy_analyst
 from japanai.agents.analysts.tax_analyst import create_tax_analyst
 from japanai.agents.analysts.yield_analyst import create_yield_analyst
 from japanai.agents.researchers.bull_researcher import create_bull_researcher
@@ -69,12 +71,14 @@ class GraphSetup:
     def setup_graph(
         self,
         selected_analysts=None,
+        use_risk_debate: bool = True,
     ):
-        """构建图。selected_analysts 默认即四类全选：location, legal, tax, yield。"""
+        """构建图。selected_analysts 默认：location, legal, policy, tax, yield。use_risk_debate=False 时仅风控裁判一人评判。"""
         if selected_analysts is None:
-            selected_analysts = ["location", "legal", "tax", "yield"]
+            selected_analysts = ["location", "legal", "policy", "tax", "yield"]
         if not selected_analysts:
             raise ValueError("At least one analyst must be selected.")
+        self._use_risk_debate = use_risk_debate
 
         analyst_nodes = {}
         delete_nodes = {}
@@ -85,6 +89,9 @@ class GraphSetup:
         if "legal" in selected_analysts:
             analyst_nodes["legal"] = create_legal_analyst(self.quick_llm)
             delete_nodes["legal"] = create_msg_delete()
+        if "policy" in selected_analysts:
+            analyst_nodes["policy"] = create_policy_analyst(self.quick_llm)
+            delete_nodes["policy"] = create_msg_delete()
         if "tax" in selected_analysts:
             analyst_nodes["tax"] = create_tax_analyst(self.quick_llm)
             delete_nodes["tax"] = create_msg_delete()
@@ -110,16 +117,17 @@ class GraphSetup:
         step_names = {
             "Location Analyst": "1. 区域分析师",
             "Legal Analyst": "2. 法律/合规分析师",
-            "Tax Analyst": "3. 税务分析师",
-            "Yield Analyst": "4. 收益分析师",
-            "Bull Researcher": "5. 多头研究员",
-            "Bear Researcher": "6. 空头研究员",
-            "Research Manager": "7. 研究经理",
-            "Trader": "8. 交易员",
-            "Aggressive Analyst": "9. 风控-激进",
-            "Conservative Analyst": "10. 风控-保守",
-            "Neutral Analyst": "11. 风控-中性",
-            "Risk Judge": "12. 风控裁判",
+            "Policy Analyst": "3. 政策研究员",
+            "Tax Analyst": "4. 税务分析师",
+            "Yield Analyst": "5. 收益分析师",
+            "Bull Researcher": "6. 多头研究员",
+            "Bear Researcher": "7. 空头研究员",
+            "Research Manager": "8. 研究经理",
+            "Trader": "9. 交易员",
+            "Aggressive Analyst": "10. 风控-激进",
+            "Conservative Analyst": "11. 风控-保守",
+            "Neutral Analyst": "12. 风控-中性",
+            "Risk Judge": "13. 风控裁判",
         }
 
         for analyst_type, node in analyst_nodes.items():
@@ -170,22 +178,25 @@ class GraphSetup:
             {"Bull Researcher": "Bull Researcher", "Research Manager": "Research Manager"},
         )
         workflow.add_edge("Research Manager", "Trader")
-        workflow.add_edge("Trader", "Aggressive Analyst")
-        workflow.add_conditional_edges(
-            "Aggressive Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {"Conservative Analyst": "Conservative Analyst", "Risk Judge": "Risk Judge"},
-        )
-        workflow.add_conditional_edges(
-            "Conservative Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {"Neutral Analyst": "Neutral Analyst", "Risk Judge": "Risk Judge"},
-        )
-        workflow.add_conditional_edges(
-            "Neutral Analyst",
-            self.conditional_logic.should_continue_risk_analysis,
-            {"Aggressive Analyst": "Aggressive Analyst", "Risk Judge": "Risk Judge"},
-        )
+        if self._use_risk_debate:
+            workflow.add_edge("Trader", "Aggressive Analyst")
+            workflow.add_conditional_edges(
+                "Aggressive Analyst",
+                self.conditional_logic.should_continue_risk_analysis,
+                {"Conservative Analyst": "Conservative Analyst", "Risk Judge": "Risk Judge"},
+            )
+            workflow.add_conditional_edges(
+                "Conservative Analyst",
+                self.conditional_logic.should_continue_risk_analysis,
+                {"Neutral Analyst": "Neutral Analyst", "Risk Judge": "Risk Judge"},
+            )
+            workflow.add_conditional_edges(
+                "Neutral Analyst",
+                self.conditional_logic.should_continue_risk_analysis,
+                {"Aggressive Analyst": "Aggressive Analyst", "Risk Judge": "Risk Judge"},
+            )
+        else:
+            workflow.add_edge("Trader", "Risk Judge")
         workflow.add_edge("Risk Judge", END)
 
         return workflow.compile()
