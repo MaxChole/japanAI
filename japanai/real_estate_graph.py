@@ -24,7 +24,7 @@ from japanai.agents.utils.legal_tools import get_legal_faq
 from japanai.agents.utils.policy_tools import get_policy_faq
 from japanai.agents.utils.tax_tools import get_tax_rules
 from japanai.agents.utils.yield_tools import get_yield_inputs
-from japanai.dataflows.config import set_config
+from japanai.dataflows.config import get_config, set_config
 from japanai.graph.conditional_logic import ConditionalLogic
 from japanai.graph.setup import GraphSetup
 from japanai.graph.propagation import Propagator
@@ -153,6 +153,8 @@ class RealEstateGraph:
             trade_date,
             household_region=household_region or "",
         )
+        # 将 trade_date 写入 config，供 csv_vendor 等按年过滤
+        set_config({**get_config(), "trade_date": trade_date})
         args = self.propagator.get_graph_args(self.callbacks)
 
         if self.debug:

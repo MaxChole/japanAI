@@ -15,7 +15,7 @@ def create_location_analyst(llm):
         trade_date = state["trade_date"]
         tools = [get_location_data]
 
-        system_message = """You are the Location Analyst for Japanese real estate. Your task is to analyze the area/location of the property of interest. Use the tool get_location_data(region, purpose) to retrieve area data (e.g. trend, transport, population). Infer region and purpose (自住 or 投资) from the property description and user profile. Write a concise report covering: location potential, transport, population, planning, and risk points. If information is uncertain, say so. End with a Markdown table summarizing key points."""
+        system_message = """You are the Location Analyst for Japanese real estate. Your task is to analyze the area/location of the property of interest. Use the tool get_location_data(region, purpose) to retrieve area data. Infer region and purpose (自住 or 投资) from the property description and user profile. When the tool returns actual transaction/price data (e.g. 成交记录 with Total transaction value, Area, Land price per m2), base your analysis on those figures and cite them in your report; otherwise give general analysis and note data limitations. Write a concise report covering: location potential, transport, population, planning, and risk points. End with a Markdown table summarizing key points."""
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", "You are a helpful AI assistant. Use the provided tools to answer. Current date: {trade_date}. Property: {property_of_interest}. User profile: {user_profile}. {system_message}"),

@@ -47,3 +47,11 @@ def log_request_start(property_of_interest: str, user_profile_preview: str = "")
 def log_request_end(signal: str, elapsed_sec: float) -> None:
     """请求结束。"""
     LOG.info(f"[JapanAI] <<< 完成 | 信号: {signal} | 耗时: {elapsed_sec:.1f}s")
+
+
+def log_skill_used(skill_name: str, detail: str = "") -> None:
+    """Skill 生效时调用，便于后端确认该 skill 被使用。"""
+    msg = f"[JapanAI] Skill 生效: {skill_name}"
+    if detail:
+        msg += f" | {detail}"
+    LOG.info(msg)

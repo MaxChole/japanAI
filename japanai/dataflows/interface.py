@@ -4,16 +4,18 @@
 """
 from .config import get_config
 from .mock_vendor import (
-    get_location_data,
+    get_location_data as get_location_data_mock,
     get_legal_faq,
     get_policy_faq,
     get_tax_rules,
     get_yield_inputs,
 )
+from .csv_vendor import get_location_data as get_location_data_csv
+from japanai.utils.step_logger import log_skill_used
 
-# 方法名 -> 实现函数（当前仅 mock）
+# 方法名 -> 实现函数（mock / csv 等）
 VENDOR_METHODS = {
-    "get_location_data": {"mock": get_location_data},
+    "get_location_data": {"mock": get_location_data_mock, "csv": get_location_data_csv},
     "get_legal_faq": {"mock": get_legal_faq},
     "get_policy_faq": {"mock": get_policy_faq},
     "get_tax_rules": {"mock": get_tax_rules},
@@ -29,9 +31,31 @@ TOOLS_CATEGORIES = {
     "yield_data": {"description": "收益/现金流", "tools": ["get_yield_inputs"]},
 }
 
+# 东京/日本区域关键词：get_location_data 自动触发 skill 时用，不依赖「是否用 CSV」配置
+_TOKYO_REGION_KEYWORDS = (
+    "东京", "日本", "港区", "中央区", "千代田区", "新宿区", "渋谷区", "品川区", "目黒区",
+    "大田区", "世田谷区", "中野区", "杉並区", "豊島区", "北区", "荒川区", "板橋区", "練馬区",
+    "足立区", "葛飾区", "江戸川区", "文京区", "台東区", "墨田区", "江東区",
+    "Tokyo", "Minato", "Chuo", "Chiyoda", "Shinjuku", "Shibuya", "Shinagawa", "Meguro",
+    "Ota", "Setagaya", "Nakano", "Suginami", "Toshima", "Kita", "Arakawa", "Itabashi",
+    "Nerima", "Adachi", "Katsushika", "Edogawa", "Bunkyo", "Taito", "Sumida", "Koto",
+)
 
-def get_vendor(method: str) -> str:
-    """返回该方法配置的 vendor，默认 mock。"""
+
+def _is_tokyo_region(region: str) -> bool:
+    """请求区域是否为东京/日本，用于 skill 自动触发：是则读 CSV 给大模型，无需任何配置。"""
+    if not region or not isinstance(region, str):
+        return False
+    r = region.strip()
+    return any(kw in r for kw in _TOKYO_REGION_KEYWORDS)
+
+
+def get_vendor(method: str, *args, **kwargs) -> str:
+    """返回该方法实际使用的 vendor。get_location_data 固定由 skill 自动触发：东京/日本→读 CSV，否则 mock，无「用不用 CSV」配置。"""
+    if method == "get_location_data":
+        region = (args[0] if args else "") or ""
+        return "csv" if _is_tokyo_region(region) else "mock"
+
     config = get_config()
     tool_vendors = config.get("tool_vendors", {})
     if method in tool_vendors:
@@ -44,11 +68,13 @@ def get_vendor(method: str) -> str:
 
 
 def route_to_vendor(method: str, *args, **kwargs):
-    """根据配置将 method 路由到对应 vendor 实现并执行。"""
+    """根据配置将 method 路由到对应 vendor 并执行。get_location_data 由 skill 自动触发，东京/日本即读 CSV 给大模型。"""
     if method not in VENDOR_METHODS:
         raise ValueError(f"Unsupported method: {method}")
-    vendor = get_vendor(method)
+    vendor = get_vendor(method, *args, **kwargs)
     if vendor not in VENDOR_METHODS[method]:
-        vendor = "mock"  # fallback to mock if configured vendor missing
+        vendor = "mock"
+    if method == "get_location_data" and vendor == "csv":
+        log_skill_used("japan-realestate-csv", "get_location_data → CSV (skill 自动触发)")
     impl = VENDOR_METHODS[method][vendor]
     return impl(*args, **kwargs)
