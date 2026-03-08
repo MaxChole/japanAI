@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { advise, getConfigSchema, type AdviseRequest, type AdviseResponse, type ConfigSchema } from './api'
 import styles from './App.module.css'
 
-const ANALYST_OPTIONS = ['location', 'legal', 'tax', 'yield'] as const
+const ANALYST_OPTIONS = ['location', 'legal', 'policy', 'tax', 'yield'] as const
 const PROVIDER_OPTIONS = [
   { value: 'openai', label: 'OpenAI' },
   { value: 'minimax', label: 'MiniMax' },
@@ -15,6 +15,7 @@ export default function App() {
   const [apiBase, setApiBase] = useState('http://localhost:8000')
   const [propertyOfInterest, setPropertyOfInterest] = useState('东京都港区 某公寓，投资用')
   const [userProfile, setUserProfile] = useState('预算约 5000 万日元，投资用途，非居住者，计划长期持有')
+  const [householdRegion, setHouseholdRegion] = useState('中国')
   const [tradeDate, setTradeDate] = useState('')
   const [provider, setProvider] = useState('minimax')
   const [deepModel, setDeepModel] = useState('')
@@ -24,6 +25,7 @@ export default function App() {
   const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>(['location', 'legal', 'tax', 'yield'])
   const [maxDebateRounds, setMaxDebateRounds] = useState(1)
   const [maxRiskRounds, setMaxRiskRounds] = useState(1)
+  const [useRiskDebate, setUseRiskDebate] = useState(false)
   const [debug, setDebug] = useState(false)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<AdviseResponse | null>(null)
@@ -71,9 +73,11 @@ export default function App() {
       const payload: AdviseRequest = {
         property_of_interest: propertyOfInterest,
         user_profile: userProfile,
+        household_region: householdRegion || undefined,
         trade_date: tradeDate || undefined,
         llm_config: Object.keys(llmConfig).length ? llmConfig : undefined,
         selected_analysts: selectedAnalysts.length ? selectedAnalysts : undefined,
+        use_risk_debate: useRiskDebate,
         max_debate_rounds: maxDebateRounds,
         max_risk_discuss_rounds: maxRiskRounds,
         debug,
@@ -138,6 +142,14 @@ export default function App() {
               onChange={(e) => setUserProfile(e.target.value)}
               rows={3}
               placeholder="预算、用途、是否非居住者、持有期限"
+            />
+            <label className={styles.label}>户籍/国籍/常居地（政策研究员用）</label>
+            <input
+              type="text"
+              className={styles.input}
+              value={householdRegion}
+              onChange={(e) => setHouseholdRegion(e.target.value)}
+              placeholder="如：中国、日本、美国"
             />
             <label className={styles.label}>分析基准日 (yyyy-mm-dd)</label>
             <input
@@ -254,6 +266,14 @@ export default function App() {
             <label className={styles.checkLabel}>
               <input
                 type="checkbox"
+                checked={useRiskDebate}
+                onChange={(e) => setUseRiskDebate(e.target.checked)}
+              />
+              三方风控辩论（否则仅风控裁判一人）
+            </label>
+            <label className={styles.checkLabel}>
+              <input
+                type="checkbox"
                 checked={debug}
                 onChange={(e) => setDebug(e.target.checked)}
               />
@@ -290,6 +310,14 @@ export default function App() {
                 <span className={`${styles.signal} ${styles[`signal_${result.signal.toLowerCase()}`]}`}>
                   {result.signal}
                 </span>
+                {result.token_usage && (
+                  <div className={styles.tokenUsage}>
+                    <span className={styles.tokenLabel}>Token 消耗</span>
+                    <span className={styles.tokenValues}>
+                      输入 {result.token_usage.prompt_tokens} · 输出 {result.token_usage.completion_tokens} · 合计 {result.token_usage.total_tokens}
+                    </span>
+                  </div>
+                )}
               </div>
               <section className={styles.reportSection}>
                 <h3>风控裁判结论</h3>
@@ -310,6 +338,10 @@ export default function App() {
               <section className={styles.reportSection}>
                 <h3>法律报告</h3>
                 <div className={`mono ${styles.reportText}`}>{result.legal_report}</div>
+              </section>
+              <section className={styles.reportSection}>
+                <h3>政策报告（户籍国在日购房政策）</h3>
+                <div className={`mono ${styles.reportText}`}>{result.policy_report}</div>
               </section>
               <section className={styles.reportSection}>
                 <h3>税务报告</h3>

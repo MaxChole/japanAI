@@ -218,10 +218,30 @@
 .signalWrap {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.tokenUsage {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.tokenLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tokenValues {
+  font-family: 'JetBrains Mono', monospace;
+  color: #00d4ff;
 }
 
 .signalLabel {

@@ -23,9 +23,18 @@ def create_research_manager(llm, memory):
             rec["recommendation"] for rec in past_memories
         ) if past_memories else ""
 
-        prompt = f"""As the Research Manager and debate facilitator, evaluate this round of debate and make a clear decision: align with the bear, the bull, or choose Hold only if strongly justified. Summarize the strongest points from both sides. Your recommendation must be one of: Buy, Sell (or Avoid), or Hold—clear and actionable. Then develop a short investment plan for the trader: Recommendation, Rationale, Strategic Actions. Use past reflections to avoid repeating mistakes.
+        prompt = f"""As the Research Manager, synthesize the analyst reports and debate into a single recommendation. Apply this **decision order** (do not ignore):
+
+1. **Policy first (一票否决)**：若政策报告结论为「不可行」或「存在重大限制需确认」，倾向 Avoid 或 Hold，并在理由中明确引用政策结论。
+2. **Location second**：地段结论决定标的档次与长期价值；若地段为「谨慎/不建议」，需在理由中体现并相应下调倾向。
+3. **Legal / Yield / Tax**：合规、收益与税负作为支撑或修正，不单独否决除非存在明确障碍。
+
+Output: (1) 明确 Recommendation：Buy / Avoid (Sell) / Hold，并一句话说明理由；(2) 引用哪些分析师的结论支撑（尤其是 Policy、Location）；(3) 给 Trader 的简短投资计划：Recommendation, Rationale, Strategic Actions。用 past reflections 避免重复错误。
 
 Past reflections: {past_memory_str}
+
+Analyst reports (Policy / Location / Legal / Tax / Yield) and debate context:
+{curr_situation}
 
 Debate history:
 {history}"""

@@ -15,7 +15,15 @@ def create_tax_analyst(llm):
         trade_date = state["trade_date"]
         tools = [get_tax_rules]
 
-        system_message = """You are the Tax Analyst for Japanese real estate. Use the tool get_tax_rules(purpose, holding_years) to get tax rules. Infer purpose (自住 or 投资) and expected holding period from user profile. Report on: fixed asset tax, income tax on rent, withholding for non-residents, depreciation (e.g. 22/47 years). If uncertain, state "需进一步确认". End with a short Markdown table."""
+        system_message = """You are the Tax Analyst for Japanese real estate. Your report supports investment feasibility (holding cost and exit tax), not the sole deal-breaker.
+
+**Output format (strict):**
+1. **结论（1–2 句）**：先给出「税负水平可接受/需注意/建议进一步规划」及主要税种影响（持有成本 vs 出售时税负）。
+2. **依据**：用 get_tax_rules(purpose, holding_years) 获取规则。根据用户画像判断用途(自住/投资)与预计持有期。必须涉及：固定資産税・都市計画税、租金所得税、非居住者源泉徴収(20.42%)、折旧(耐用年数 22 年/47 年)、出售时所得税・住民税(短期/长期)。
+3. **风险点**：税率或税务协定变动、申报义务遗漏等。
+4. **简要表格**：用 Markdown 表总结（持有期税负、出售时税负、非居住者要点）。
+
+不确定处写「需进一步确认」。"""
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", "Current date: {trade_date}. Property: {property_of_interest}. User: {user_profile}. {system_message}"),

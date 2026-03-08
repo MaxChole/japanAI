@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from japanai.real_estate_graph import RealEstateGraph
 from japanai.default_config import DEFAULT_CONFIG
 from japanai.utils.step_logger import log_step
+from japanai.utils.token_usage_callback import TokenUsageCallback
 
 app = FastAPI(
     title="JapanAI 地产投资建议",
@@ -107,8 +108,15 @@ class AdviseRequest(BaseModel):
     max_risk_discuss_rounds: Optional[int] = Field(None, description="风控辩论轮数")
 
 
+class TokenUsage(BaseModel):
+    """本次请求累计的 LLM token 用量。"""
+    prompt_tokens: int = Field(0, description="输入 token 数")
+    completion_tokens: int = Field(0, description="输出 token 数")
+    total_tokens: int = Field(0, description="总 token 数")
+
+
 class AdviseResponse(BaseModel):
-    """响应：最终决策、信号、及各报告与计划摘要。"""
+    """响应：最终决策、信号、及各报告与计划摘要、token 用量。"""
     signal: str = Field(..., description="BUY | HOLD | AVOID")
     final_decision: str = Field(..., description="风控裁判完整结论")
     investment_plan: str = Field("", description="研究经理投资计划")
@@ -118,6 +126,7 @@ class AdviseResponse(BaseModel):
     policy_report: str = Field("", description="政策研究员报告（户籍国在日购房政策）")
     tax_report: str = Field("", description="税务报告摘要")
     yield_report: str = Field("", description="收益报告摘要")
+    token_usage: Optional[TokenUsage] = Field(None, description="本次请求消耗的 token 统计")
 
 
 # ---------- 配置 schema（供前端展示可选参数） ----------
@@ -179,12 +188,15 @@ def advise(req: AdviseRequest) -> AdviseResponse:
         max_debate_rounds=req.max_debate_rounds,
         max_risk_discuss_rounds=req.max_risk_discuss_rounds,
     )
+    token_cb = TokenUsageCallback()
     final_state, signal = graph.propagate(
         property_of_interest=req.property_of_interest,
         user_profile=req.user_profile,
         trade_date=req.trade_date,
         household_region=req.household_region or "",
+        request_callbacks=[token_cb],
     )
+    token_usage = TokenUsage(**token_cb.to_dict()) if (token_cb.prompt_tokens or token_cb.completion_tokens) else None
     return AdviseResponse(
         signal=signal,
         final_decision=final_state.get("final_decision") or "",
@@ -195,6 +207,7 @@ def advise(req: AdviseRequest) -> AdviseResponse:
         policy_report=final_state.get("policy_report") or "",
         tax_report=final_state.get("tax_report") or "",
         yield_report=final_state.get("yield_report") or "",
+        token_usage=token_usage,
     )
 
 

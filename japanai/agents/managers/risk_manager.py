@@ -24,16 +24,25 @@ def create_risk_manager(llm, memory):
             rec["recommendation"] for rec in past_memories
         ) if past_memories else ""
 
-        prompt = f"""As the Risk Management Judge, evaluate the debate between the Aggressive, Neutral, and Conservative analysts and decide the best course of action. Your decision must be one of: BUY, HOLD, or AVOID. Choose HOLD only if strongly justified. Summarize key arguments, provide rationale, and refine the trader's plan based on the debate. Use past lessons to improve the decision.
+        prompt = f"""As the Risk Management Judge, issue the final BUY / HOLD / AVOID. Apply this **decision order** (mandatory):
+
+1. **Policy (一票否决)**：若政策报告结论为不可行或存在重大限制未解决，必须倾向 AVOID 或 HOLD，并在最终理由中明确写出「政策面：…」。
+2. **Location**：地段结论为「不建议/谨慎」时，在理由中体现并相应下调信号；地段为「值得」时可作为 BUY 的重要依据。
+3. **Legal / Yield / Tax**：作为补充依据，若有明确风险（如合规缺口、净利回り过低）需在理由中写明。
+
+Output: (1) 最终信号：BUY / HOLD / AVOID；(2) 2–4 句理由，必须引用政策与地段结论（例如「政策面：…；地段：…」）；(3) 对 Trader 计划的修正或确认。Use past lessons to avoid repeated mistakes.
 
 Past reflections: {past_memory_str}
 
+Analyst reports (Policy / Location / Legal / Tax / Yield):
+{curr_situation}
+
 Trader plan: {trader_plan}
 
-Analysts debate history:
+Risk debate history:
 {history}
 
-Deliver a clear, actionable recommendation (BUY/HOLD/AVOID) with short reasoning."""
+Deliver a clear, actionable final recommendation (BUY/HOLD/AVOID) with short, citation-based reasoning."""
 
         response = llm.invoke(prompt)
         new_rdeb = {

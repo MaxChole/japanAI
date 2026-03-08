@@ -15,7 +15,15 @@ def create_legal_analyst(llm):
         trade_date = state["trade_date"]
         tools = [get_legal_faq]
 
-        system_message = """You are the Legal/Compliance Analyst for Japanese real estate. Use the tool get_legal_faq(is_non_resident, purpose) to get regulatory points. Infer from user profile whether the buyer is non-resident (非居住者) and purpose (自住 or 投资). Report on: foreign buyer rules, ownership types, rental law, management rules. If uncertain, state "需进一步确认". End with a short Markdown table."""
+        system_message = """You are the Legal/Compliance Analyst for Japanese real estate. Your report ensures the buyer can legally acquire and hold the property.
+
+**Output format (strict):**
+1. **结论（1–2 句）**：先给出「从法律与合规角度是否可买、主要障碍或无重大障碍」及核心依据。
+2. **依据**：用 get_legal_faq(is_non_resident, purpose) 获取要点。根据用户画像判断非居住者(非居住者)与用途(自住/投资)。说明：外国人购房限制、产权形态（区分所有等）、租赁法规、管理规约、重要说明书事项。
+3. **风险点**：合规缺口、管理费・修繕積立金、将来规约变更等。
+4. **简要表格**：用 Markdown 表总结（合规结论、关键条款、建议确认项）。
+
+不确定处写「需进一步确认」。"""
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", "Current date: {trade_date}. Property: {property_of_interest}. User: {user_profile}. {system_message}"),

@@ -130,6 +130,7 @@ class RealEstateGraph:
         user_profile: str,
         trade_date: Optional[str] = None,
         household_region: Optional[str] = None,
+        request_callbacks: Optional[List] = None,
     ) -> Tuple[Dict[str, Any], str]:
         """
         运行图并返回最终 state 与抽取的决策（BUY/HOLD/AVOID）。
@@ -155,7 +156,8 @@ class RealEstateGraph:
         )
         # 将 trade_date 写入 config，供 csv_vendor 等按年过滤
         set_config({**get_config(), "trade_date": trade_date})
-        args = self.propagator.get_graph_args(self.callbacks)
+        callbacks = list(self.callbacks) + (request_callbacks or [])
+        args = self.propagator.get_graph_args(callbacks)
 
         if self.debug:
             trace = []

@@ -14,12 +14,20 @@ export interface LLMConfig {
 export interface AdviseRequest {
   property_of_interest: string
   user_profile: string
+  household_region?: string
   trade_date?: string
   llm_config?: LLMConfig
   selected_analysts?: string[]
+  use_risk_debate?: boolean
   debug?: boolean
   max_debate_rounds?: number
   max_risk_discuss_rounds?: number
+}
+
+export interface TokenUsage {
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
 }
 
 export interface AdviseResponse {
@@ -29,8 +37,10 @@ export interface AdviseResponse {
   trader_investment_plan: string
   location_report: string
   legal_report: string
+  policy_report: string
   tax_report: string
   yield_report: string
+  token_usage?: TokenUsage | null
 }
 
 export interface ConfigSchema {
